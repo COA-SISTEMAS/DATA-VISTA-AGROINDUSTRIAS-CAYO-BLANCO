@@ -1,7 +1,7 @@
 let rawRows=[], columns=[], sourceName='', charts={}, workbook=null, activeSheetName='';
 const $=id=>document.getElementById(id), fmt=n=>Number(n||0).toLocaleString('es-HN',{maximumFractionDigits:2});
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),3200)}
-function go(s){document.querySelectorAll('.page-section').forEach(x=>x.classList.toggle('visible',x.id==='section-'+s));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.section===s));$('crumb').textContent=s==='riego'?'Análisis de riego':'Conexión Excel';$('sidebar').classList.remove('open')}
+function go(s){document.querySelectorAll('.page-section').forEach(x=>x.classList.toggle('visible',x.id==='section-'+s));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.section===s));$('crumb').textContent=s==='riego'?'Análisis de datos':'Conexión Excel';$('sidebar').classList.remove('open')}
 document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>go(b.dataset.section));document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));$('mobileMenu').onclick=()=>$('sidebar').classList.toggle('open');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
@@ -24,7 +24,13 @@ function configureMappings(){
  $('resetFilters').onclick=()=>{document.querySelectorAll('#dynamicFilters select').forEach(s=>Array.from(s.options).forEach(o=>o.selected=false));renderDashboard()};
  renderDashboard();
 }
-function importRows(rows,name){if(!rows?.length){toast('No se encontraron registros.');return}rawRows=rows.filter(r=>r&&Object.values(r).some(v=>v!==null&&v!==''));if(!rawRows.length){toast('La hoja no contiene filas con datos.');return}columns=Object.keys(rawRows[0]||{});sourceName=name||'Archivo Excel';configureMappings();toast('Archivo cargado: '+rawRows.length+' registros y '+columns.length+' columnas.')}
+function updateAnalysisIdentity(){
+ const sheet=activeSheetName||sourceName||'Archivo';
+ $('analysisTitle').textContent='Análisis de '+sheet;
+ $('sourceLabel').textContent=(sourceName||'ARCHIVO').toUpperCase();
+ $('analysisDescription').textContent='Explora, filtra y compara los datos de '+sheet+'. Los indicadores y las gráficas se adaptan a sus columnas.';
+}
+function importRows(rows,name){if(!rows?.length){toast('No se encontraron registros.');return}rawRows=rows.filter(r=>r&&Object.values(r).some(v=>v!==null&&String(v).trim()!==''));if(!rawRows.length){toast('La hoja no contiene filas con datos.');return}columns=Object.keys(rawRows[0]||{});sourceName=name||'Archivo Excel';updateAnalysisIdentity();configureMappings();toast('Archivo cargado: '+rawRows.length+' registros y '+columns.length+' columnas.')}
 function extractSheetTable(sheet){
  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,raw:true,blankrows:false});
  if(!matrix.length)return {rows:[],headerRow:1,headers:[]};
@@ -86,7 +92,7 @@ function renderDynamicCharts(valid){
   const card=document.createElement('article');card.className='dynamic-chart-card';card.id='dynamicCard'+index;
   const heading=document.createElement('div');heading.className='dynamic-chart-heading';
   const titleWrap=document.createElement('div');titleWrap.className='dynamic-chart-title';
-  const eyebrow=document.createElement('span');eyebrow.textContent='ANÁLISIS POR COLUMNA';
+  const eyebrow=document.createElement('span');eyebrow.textContent='ANÁLISIS DE DATOS';
   const title=document.createElement('h3');title.textContent=col;
   const meta=document.createElement('small');meta.textContent=entries.length+' categorías · '+fmt(entries.reduce((s,x)=>s+x[1],0))+' '+($('durationUnit').value==='minutes'?'min':'h');
   titleWrap.append(eyebrow,title,meta);
@@ -112,8 +118,12 @@ function renderDashboard(){
  buildDynamicFilters();
  const data=getFilteredRows(),valid=data.map(r=>({row:r,value:durationHours(r[valueCol])})).filter(x=>x.value!==null&&x.value>=0);
  const total=valid.reduce((s,x)=>s+x.value,0),avg=valid.length?total/valid.length:0,max=valid.length?Math.max(...valid.map(x=>x.value)):0;
- $('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+($('durationUnit').value==='minutes'?' min':' h');$('metricAverage').textContent=fmt(avg)+($('durationUnit').value==='minutes'?' min':' h');$('metricMax').textContent=fmt(max)+($('durationUnit').value==='minutes'?' min':' h');
- $('mappingStatus').textContent='Columnas detectadas: '+columns.length+' · Filtros disponibles: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
+ const valueName=valueCol||'valor';
+ $('metricTotalLabel').textContent='Suma de '+valueName;
+ $('metricAverageLabel').textContent='Promedio de '+valueName;
+ $('metricMaxLabel').textContent='Máximo de '+valueName;
+ $('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+($('durationUnit').value==='minutes'?' min':'');$('metricAverage').textContent=fmt(avg)+($('durationUnit').value==='minutes'?' min':'');$('metricMax').textContent=fmt(max)+($('durationUnit').value==='minutes'?' min':'');
+ $('mappingStatus').textContent='Columnas con datos: '+columns.length+' · Columnas seleccionadas para filtros: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
  $('resultCount').textContent=fmt(valid.length)+' registros con valor válido · '+fmt(data.length)+' registros filtrados';
  const displayCols=[...new Set([valueCol,...filterCols].filter(Boolean))],shown=data.slice(0,250);
  $('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr>'+displayCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+shown.map(r=>'<tr>'+displayCols.map(c=>'<td>'+esc(displayCellValue(r[c]))+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros seleccionados.';
