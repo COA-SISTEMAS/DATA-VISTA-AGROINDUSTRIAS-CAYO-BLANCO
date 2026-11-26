@@ -28,10 +28,19 @@ function importRows(rows,name){if(!rows?.length){toast('No se encontraron regist
 function extractSheetTable(sheet){
  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,raw:true,blankrows:false});
  if(!matrix.length)return {rows:[],headerRow:1,headers:[]};
- const headers=matrix[0]||[],width=Math.max(headers.length,...matrix.slice(1).map(r=>(r||[]).length));
- const names=[],used=new Set();
- for(let j=0;j<width;j++){let name=headers[j]===null||headers[j]===undefined?'':String(headers[j]).trim();if(!name)name='Columna '+(j+1);let uniqueName=name,n=2;while(used.has(norm(uniqueName)))uniqueName=name+' ('+(n++)+')';used.add(norm(uniqueName));names.push(uniqueName)}
- const rows=matrix.slice(1).map(line=>{const obj={};names.forEach((name,j)=>obj[name]=line?.[j]??null);return obj}).filter(r=>Object.values(r).some(v=>v!==null&&String(v).trim()!==''));
+ const headers=matrix[0]||[],data=matrix.slice(1),width=Math.max(headers.length,...data.map(r=>(r||[]).length));
+ const columnsToKeep=[],used=new Set();
+ for(let j=0;j<width;j++){
+  const original=headers[j]===null||headers[j]===undefined?'':String(headers[j]).trim();
+  if(!original)continue;
+  const hasData=data.some(line=>line?.[j]!==null&&line?.[j]!==undefined&&String(line[j]).trim()!=='');
+  if(!hasData)continue;
+  let name=original,uniqueName=name,n=2;
+  while(used.has(norm(uniqueName)))uniqueName=name+' ('+(n++)+')';
+  used.add(norm(uniqueName));columnsToKeep.push({index:j,name:uniqueName});
+ }
+ const names=columnsToKeep.map(c=>c.name);
+ const rows=data.map(line=>{const obj={};columnsToKeep.forEach(c=>obj[c.name]=line?.[c.index]??null);return obj}).filter(r=>Object.values(r).some(v=>v!==null&&String(v).trim()!==''));
  return {rows,headerRow:1,headers:names};
 }
 function importWorkbook(wb,name){workbook=wb;sourceName=name||'Libro Excel';const selector=$('sheetSelector');selector.innerHTML=wb.SheetNames.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');selector.onchange=()=>loadSelectedSheet(selector.value);loadSelectedSheet(wb.SheetNames[0])}
