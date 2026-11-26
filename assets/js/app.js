@@ -8,7 +8,7 @@ function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/
 const synonyms={duration:['horastrabajadas','tiempoderiego','tiempoderiegohoras','duracion','duracionderiego','horasderiego','horariego','tiempo','horas','minutosderiego','tiempominutos','tiempohoras','tiempototal','horasefectivas','tiempodeaplicacion','tiempoprogramado','tiempodefuncionamiento','riegoenhoras','riegoenminutos','duracionhoras','duracionminutos']};
 function detectValueColumn(){const keys=synonyms.duration.map(norm);return columns.find(c=>keys.includes(norm(c)))||columns.find(c=>keys.some(k=>norm(c).includes(k)))||columns.find(c=>rawRows.some(r=>numericValue(r[c])!==null))||''}
 function numericValue(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return Number.isFinite(v)?v:null;const s=String(v).trim(),m=s.match(/^(\\d+):(\\d{1,2})(?::(\\d{1,2}))?$/);if(m)return +m[1]+(+m[2]/60)+((+m[3]||0)/3600);const n=Number(s.replace(',','.'));return Number.isFinite(n)?n:null}
-function durationHours(v){const n=numericValue(v);if(n===null)return null;const unit=$('durationUnit')?.value||'auto';if(unit==='minutes')return n/60;if(unit==='hours')return n;if(unit==='auto'&&typeof v==='number'&&n>=0&&n<1)return n*24;return n}
+function durationHours(v){const n=numericValue(v);if(n===null)return null;const unit=$('durationUnit')?.value||'auto';if(unit==='minutes')return n/60;if(unit==='hours')return n;if(unit==='auto')return n;return n}
 function fillSelect(id,values,selectedValue){const el=$(id);el.innerHTML=values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');if(selectedValue&&values.includes(selectedValue))el.value=selectedValue}
 function configureMappings(){
  $('dashboard').hidden=false;$('emptyState').hidden=true;
