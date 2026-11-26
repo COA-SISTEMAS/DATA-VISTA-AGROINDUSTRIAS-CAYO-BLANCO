@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id),fmt=n=>Number(n).toLocaleString('es-HN',
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2800)}
 function go(s){document.querySelectorAll('.page-section').forEach(x=>x.classList.toggle('visible',x.id==='section-'+s));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.section===s));$('crumb').textContent=document.querySelector('[data-section="'+s+'"]')?.textContent.trim()||s;$('sidebar').classList.remove('open');if(s==='explorador')renderTable()}
 document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>go(b.dataset.section));document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));$('mobileMenu').onclick=()=>$('sidebar').classList.toggle('open');
-function setRows(rows,name){if(!rows?.length){toast('El archivo no contiene registros.');return}const clean=rows.filter(r=>Object.values(r).some(v=>!isBlank(v)));if(!clean.length){toast('No se encontraron filas con datos.');return}analysis=analyzeRows(clean);sourceName=name||'Base de datos';$('datasetName').textContent=sourceName+' · '+fmt(analysis.records)+' registros';$('lastUpdated').textContent='Actualizado '+new Date().toLocaleString('es-HN');$('homeRows').textContent=fmt(analysis.records);$('homeCols').textContent=fmt(analysis.variableCount);$('homeNumeric').textContent=fmt(analysis.numericCount);$('homeIssues').textContent=fmt(analysis.totalMissing+analysis.duplicates);renderAll();toast('Se analizaron '+fmt(analysis.records)+' registros.')}
+function setRows(rows,name){if(!rows?.length){toast('El archivo no contiene registros.');return}const clean=rows.filter(r=>Object.values(r).some(v=>!isBlank(v)));if(!clean.length){toast('No se encontraron filas con datos.');return}analysis=analyzeRows(clean);sourceName=name||'Base de datos';if($('clearDataset'))$('clearDataset').disabled=false;$('datasetName').textContent=sourceName+' · '+fmt(analysis.records)+' registros';$('lastUpdated').textContent='Actualizado '+new Date().toLocaleString('es-HN');$('homeRows').textContent=fmt(analysis.records);$('homeCols').textContent=fmt(analysis.variableCount);$('homeNumeric').textContent=fmt(analysis.numericCount);$('homeIssues').textContent=fmt(analysis.totalMissing+analysis.duplicates);renderAll();toast('Se analizaron '+fmt(analysis.records)+' registros.')}
 function parseFile(file){const reader=new FileReader();reader.onload=e=>{try{const wb=file.name.toLowerCase().endsWith('.csv')?XLSX.read(e.target.result,{type:'string',cellDates:true}):XLSX.read(e.target.result,{type:'array',cellDates:true});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null,raw:true});setRows(rows,file.name)}catch(err){console.error(err);toast('No se pudo leer el archivo.')}};file.name.toLowerCase().endsWith('.csv')?reader.readAsText(file):reader.readAsArrayBuffer(file)}
 function chooseFile(f){if(!f)return;if(!/\.(xlsx|xls|csv)$/i.test(f.name)){toast('Usa un archivo XLSX, XLS o CSV.');return}parseFile(f)}
 $('fileInput').onchange=e=>chooseFile(e.target.files[0]);['heroImport','excelCard'].forEach(id=>$(id).onclick=()=>$('fileInput').click());$('dropZone').addEventListener('dragover',e=>{e.preventDefault();$('dropZone').classList.add('dragover')});$('dropZone').addEventListener('dragleave',()=>$('dropZone').classList.remove('dragover'));$('dropZone').addEventListener('drop',e=>{e.preventDefault();$('dropZone').classList.remove('dragover');chooseFile(e.dataTransfer.files[0])});
@@ -14,6 +14,37 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function renderAll(){renderTable();renderQuality();renderDescriptive();renderCategories();renderRelations();renderGeo()}
 function renderTable(){if(!analysis){$('dataTable').textContent='Aún no hay datos para mostrar.';$('tableFooter').textContent='0 registros';return}const q=($('tableSearch').value||'').toLowerCase(),rows=analysis.rows.filter(r=>!q||Object.values(r).some(v=>String(v??'').toLowerCase().includes(q))),view=rows.slice(0,150);$('dataTable').innerHTML='<table class="data-table"><thead><tr>'+analysis.columns.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+view.map(r=>'<tr>'+analysis.columns.map(c=>'<td>'+esc(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table>';$('tableFooter').textContent='Mostrando '+view.length+' de '+fmt(rows.length)+' registros'}
 $('tableSearch').oninput=renderTable;
+
+function clearDataset(){
+  if(!analysis)return;
+  if(!confirm('¿Eliminar todos los registros importados y limpiar los análisis de DATA VISTA? El archivo original de SharePoint no se eliminará.'))return;
+  if(window.Chart && Chart.instances){
+    Object.values(Chart.instances).forEach(instance=>instance.destroy());
+  }
+  analysis=null;
+  sourceName='';
+  $('datasetName').textContent='Ninguna base cargada';
+  $('tableSearch').value='';
+  $('tableSearch').disabled=true;
+  $('tableSearch').disabled=false;
+  $('tableFooter').textContent='0 registros';
+  $('dataTable').textContent='Aún no hay datos para mostrar.';
+  $('qualityContent').textContent='Importa una base para generar el diagnóstico.';
+  $('descriptiveContent').textContent='Sin variables numéricas.';
+  $('categoryContent').textContent='Importa datos para ver frecuencias.';
+  $('relationsContent').textContent='Importa datos para habilitar comparaciones.';
+  $('geoContent').textContent='Sin información territorial detectada.';
+  $('homeRows').textContent='—';
+  $('homeCols').textContent='—';
+  $('homeNumeric').textContent='—';
+  $('homeIssues').textContent='—';
+  $('lastUpdated').textContent='Sin datos cargados';
+  if($('clearDataset'))$('clearDataset').disabled=true;
+  $('connectionStatus').textContent='Datos eliminados · enlace disponible para volver a importar';
+  $('syncMeta').textContent='';
+  toast('Se eliminaron los registros de DATA VISTA. El Excel original sigue intacto.');
+}
+$('clearDataset').onclick=clearDataset;
 function renderQuality(){if(!analysis)return;const a=analysis,pct=a.records*a.variableCount?a.totalMissing/(a.records*a.variableCount)*100:0;$('qualityContent').innerHTML='<div class="quality-grid">'+[['Valores faltantes',a.totalMissing,fmt(pct)+'% de las celdas'],['Filas duplicadas',a.duplicates,'Registros repetidos'],['Registros evaluados',a.records,'Filas con datos'],['Variables detectadas',a.variableCount,a.numericCount+' numéricas']].map(x=>'<div class="quality-card"><small>'+x[0]+'</small><h2>'+fmt(x[1])+'</h2><small>'+x[2]+'</small></div>').join('')+'</div><h3>Faltantes por variable</h3><table class="stats-table"><tbody>'+a.variables.filter(v=>v.missing).map(v=>'<tr><td>'+esc(v.name)+'</td><td>'+v.missing+'</td><td>'+fmt(v.missing/a.records*100)+'%</td></tr>').join('')+'</tbody></table>'}
 function renderDescriptive(){if(!analysis)return;const vars=analysis.variables.filter(v=>v.type==='numérica');if(!vars.length){$('descriptiveContent').textContent='No se detectaron variables numéricas.';return}const rows=vars.map(v=>({v,s:numericStats(v.numeric)})).filter(x=>x.s);$('descriptiveContent').innerHTML='<div class="table-wrap"><table class="stats-table"><thead><tr><th>Variable</th><th>n</th><th>Media</th><th>Mediana</th><th>Desv.</th><th>Mín.</th><th>Q1</th><th>Q3</th><th>Máx.</th></tr></thead><tbody>'+rows.map(({v,s})=>'<tr><td>'+esc(v.name)+'</td><td>'+s.n+'</td><td>'+fmt(s.mean)+'</td><td>'+fmt(s.median)+'</td><td>'+fmt(s.std)+'</td><td>'+fmt(s.min)+'</td><td>'+fmt(s.q1)+'</td><td>'+fmt(s.q3)+'</td><td>'+fmt(s.max)+'</td></tr>').join('')+'</tbody></table></div><div class="chart-grid">'+rows.slice(0,4).map((x,i)=>'<div class="chart-card"><h3>'+esc(x.v.name)+'</h3><div class="chart-box"><canvas id="hist'+i+'"></canvas></div></div>').join('')+'</div>';rows.slice(0,4).forEach((x,i)=>{const values=x.v.numeric,min=Math.min(...values),max=Math.max(...values),n=Math.min(10,Math.max(4,Math.ceil(Math.sqrt(values.length)))),width=max-min||1,count=Array(n).fill(0);values.forEach(v=>count[Math.min(n-1,Math.floor((v-min)/width*n))]++);chart('hist'+i,count.map((_,j)=>fmt(min+j*width/n)),count)})}
 function chart(id,labels,data){const el=$(id);if(!el||!window.Chart)return;const old=Chart.getChart(el);if(old)old.destroy();new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'#55c7a5',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}})}
