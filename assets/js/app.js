@@ -48,9 +48,12 @@ function buildDynamicFilters(){
 }
 function getFilteredRows(){const filters=Array.from($('dynamicFilters').querySelectorAll('select')).map(s=>({column:s.dataset.column,values:Array.from(s.selectedOptions).map(o=>o.value)}));return rawRows.filter(r=>filters.every(f=>!f.values.length||f.values.includes(valueFor(r,f.column))))}
 const chartPalette=['#16A085','#2874A6','#E67E22','#8E44AD','#D35400','#2E86C1','#C0392B','#27AE60','#7D3C98','#B7950B','#148F77','#AF601A','#5D6D7E','#CA6F1E','#1F618D','#A93226'];
-function makeDynamicChart(canvas,labels,values,title,index){
+function makeDynamicChart(canvas,labels,values,type,index){
  const colors=labels.map((_,i)=>chartPalette[i%chartPalette.length]);
- const chart=new Chart(canvas,{type:'bar',data:{labels,datasets:[{label:$('valueColumn').value||'Valor',data:values,backgroundColor:colors,borderColor:colors.map(c=>c),borderWidth:1,borderRadius:8,maxBarThickness:48,hoverBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:false},tooltip:{backgroundColor:'#173746',padding:12,displayColors:true,callbacks:{label:c=>fmt(c.raw)+' '+($('durationUnit').value==='minutes'?'minutos':'horas')}}},scales:{y:{beginAtZero:true,grid:{color:'#edf1f3'},ticks:{color:'#74858d'},title:{display:true,text:$('durationUnit').value==='minutes'?'Minutos':'Horas',color:'#536b75'}},x:{grid:{display:false},ticks:{color:'#536b75',autoSkip:true,maxRotation:35,minRotation:0}}}}});
+ const circular=['pie','doughnut','polarArea'];
+ const lineLike=['line','radar'];
+ const dataset={label:$('valueColumn').value||'Valor',data:values,backgroundColor:circular?colors:colors,borderColor:type==='line'?'#2874A6':colors,borderWidth:type==='line'?3:1,borderRadius:type==='bar'?8:0,maxBarThickness:48,hoverBorderWidth:2,pointBackgroundColor:colors,pointBorderColor:'#fff',pointRadius:4,fill:type==='line'?false:true,tension:.32};
+ const chart=new Chart(canvas,{type,data:{labels,datasets:[dataset]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:circular.includes(type),position:'bottom',labels:{usePointStyle:true,boxWidth:9,padding:14}},tooltip:{backgroundColor:'#173746',padding:12,displayColors:true,callbacks:{label:c=>fmt(c.raw)+' '+($('durationUnit').value==='minutes'?'minutos':'horas')}}},scales:circular.includes(type)?{}:{y:{beginAtZero:true,grid:{color:'#edf1f3'},ticks:{color:'#74858d'},title:{display:true,text:$('durationUnit').value==='minutes'?'Minutos':'Horas',color:'#536b75'}},x:{grid:{display:false},ticks:{color:'#536b75',autoSkip:true,maxRotation:35,minRotation:0}}}}});
  charts['dynamic_'+index]=chart;
 }
 function renderDynamicCharts(valid){
@@ -62,17 +65,27 @@ function renderDynamicCharts(valid){
   const grouped=new Map();
   valid.forEach(x=>{const label=valueFor(x.row,col);grouped.set(label,(grouped.get(label)||0)+x.value)});
   const entries=[...grouped.entries()].sort((a,b)=>b[1]-a[1]);
-  const card=document.createElement('article');card.className='dynamic-chart-card';
+  const card=document.createElement('article');card.className='dynamic-chart-card';card.id='dynamicCard'+index;
   const heading=document.createElement('div');heading.className='dynamic-chart-heading';
+  const titleWrap=document.createElement('div');titleWrap.className='dynamic-chart-title';
   const eyebrow=document.createElement('span');eyebrow.textContent='ANÁLISIS POR COLUMNA';
   const title=document.createElement('h3');title.textContent=col;
   const meta=document.createElement('small');meta.textContent=entries.length+' categorías · '+fmt(entries.reduce((s,x)=>s+x[1],0))+' '+($('durationUnit').value==='minutes'?'min':'h');
-  heading.append(eyebrow,title,meta);
+  titleWrap.append(eyebrow,title,meta);
+  const controls=document.createElement('div');controls.className='chart-controls';
+  const typeLabel=document.createElement('label');typeLabel.textContent='Tipo de gráfica';
+  const typeSelect=document.createElement('select');typeSelect.className='chart-type-select';typeSelect.setAttribute('aria-label','Tipo de gráfica para '+col);
+  [['bar','Barras'],['line','Líneas'],['pie','Circular'],['doughnut','Dona'],['polarArea','Área polar'],['radar','Radar']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;typeSelect.appendChild(o)});
+  const best=entries.length<=5?'doughnut':entries.length<=12?'bar':'bar';typeSelect.value=best;
+  const full=document.createElement('button');full.type='button';full.className='chart-fullscreen-btn';full.textContent='⛶ Pantalla completa';full.title='Ampliar gráfica';
+  controls.append(typeLabel,typeSelect,full);heading.append(titleWrap,controls);
   const box=document.createElement('div');box.className='dynamic-chart-box';
   const canvas=document.createElement('canvas');canvas.id='dynamicChart'+index;box.appendChild(canvas);
   card.append(heading,box);container.appendChild(card);
-  if(entries.length)makeDynamicChart(canvas,entries.map(x=>x[0]),entries.map(x=>Number(x[1].toFixed(3))),col,index);
-  else box.innerHTML='<div class="empty-chart-state">No hay valores para mostrar con los filtros actuales.</div>';
+  const draw=()=>{if(charts['dynamic_'+index]){charts['dynamic_'+index].destroy();delete charts['dynamic_'+index]}if(entries.length)makeDynamicChart(canvas,entries.map(x=>x[0]),entries.map(x=>Number(x[1].toFixed(3))),typeSelect.value,index)};
+  typeSelect.onchange=draw;
+  full.onclick=async()=>{try{if(!document.fullscreenElement){await card.requestFullscreen()}else{await document.exitFullscreen()}}catch(e){toast('No se pudo activar pantalla completa en este navegador.')}};
+  if(entries.length)draw();else box.innerHTML='<div class="empty-chart-state">No hay valores para mostrar con los filtros actuales.</div>';
  });
 }
 function renderDashboard(){
