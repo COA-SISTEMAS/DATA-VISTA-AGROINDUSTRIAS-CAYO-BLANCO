@@ -47,7 +47,16 @@ function importWorkbook(wb,name){workbook=wb;sourceName=name||'Libro Excel';cons
 function loadSelectedSheet(sheetName){if(!workbook||!workbook.Sheets[sheetName])return;activeSheetName=sheetName;const table=extractSheetTable(workbook.Sheets[sheetName]);if(!table.rows.length){toast('La hoja seleccionada no contiene registros debajo de la fila 1.');return}importRows(table.rows,sheetName);$('sheetInfo').textContent='Hoja: '+sheetName+' · Encabezados en fila 1 · '+table.headers.length+' columnas · '+table.rows.length+' registros';toast('Hoja "'+sheetName+'" cargada.')}
 function readFile(file){const reader=new FileReader();reader.onload=e=>{try{const wb=file.name.toLowerCase().endsWith('.csv')?XLSX.read(e.target.result,{type:'string',cellDates:true}):XLSX.read(e.target.result,{type:'array',cellDates:true});importWorkbook(wb,file.name)}catch(err){console.error(err);toast('No se pudo leer el archivo.')}};file.name.toLowerCase().endsWith('.csv')?reader.readAsText(file):reader.readAsArrayBuffer(file)}
 $('fileInput').onchange=e=>{const f=e.target.files[0];if(f)readFile(f)};
-function valueFor(row,col){return row[col]===null||row[col]===undefined||String(row[col]).trim()===''?'(Vacío)':String(row[col])}
+function displayCellValue(value){
+ if(value===null||value===undefined||String(value).trim()==='')return '—';
+ if(value instanceof Date&&!Number.isNaN(value.getTime())){
+  const weekday=new Intl.DateTimeFormat('es-HN',{weekday:'long'}).format(value);
+  const date=new Intl.DateTimeFormat('es-HN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(value);
+  return weekday+' '+date;
+ }
+ return String(value);
+}
+function valueFor(row,col){return row[col]===null||row[col]===undefined||String(row[col]).trim()===''?'(Vacío)':displayCellValue(row[col])}
 function getSelectedFilterColumns(){return Array.from($('filterColumnChoices').querySelectorAll('input:checked')).map(x=>x.value)}
 function buildDynamicFilters(){
  const selectedCols=getSelectedFilterColumns(),container=$('dynamicFilters'),previous={};
@@ -107,7 +116,7 @@ function renderDashboard(){
  $('mappingStatus').textContent='Columnas detectadas: '+columns.length+' · Filtros disponibles: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
  $('resultCount').textContent=fmt(valid.length)+' registros con valor válido · '+fmt(data.length)+' registros filtrados';
  const displayCols=[...new Set([valueCol,...filterCols].filter(Boolean))],shown=data.slice(0,250);
- $('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr>'+displayCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+shown.map(r=>'<tr>'+displayCols.map(c=>'<td>'+esc(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros seleccionados.';
+ $('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr>'+displayCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+shown.map(r=>'<tr>'+displayCols.map(c=>'<td>'+esc(displayCellValue(r[c]))+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros seleccionados.';
  renderDynamicCharts(valid);
 }
 $('toggleRecords').onclick=()=>{const box=$('resultsTable'),opening=box.hidden;box.hidden=!opening;$('toggleRecords').setAttribute('aria-expanded',String(opening));$('recordsToggleText').textContent=opening?'Ocultar registros':'Mostrar registros';$('recordsToggleIcon').textContent=opening?'−':'＋';};
