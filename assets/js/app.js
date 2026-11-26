@@ -1,4 +1,4 @@
-let rawRows=[], columns=[], sourceName='', charts={};
+let rawRows=[], columns=[], sourceName='', charts={}, workbook=null, activeSheetName='';
 const $=id=>document.getElementById(id), fmt=n=>Number(n||0).toLocaleString('es-HN',{maximumFractionDigits:2});
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),3200)}
 function go(s){document.querySelectorAll('.page-section').forEach(x=>x.classList.toggle('visible',x.id==='section-'+s));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.section===s));$('crumb').textContent=s==='riego'?'Análisis de riego':'Conexión Excel';$('sidebar').classList.remove('open')}
@@ -7,7 +7,7 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
 const synonyms={
  date:['fecha','date','dia','fechariego','fechadeprogramacion','fechaderiego','dia deriego'],
- duration:['tiempoderiego','tiempoderiegohoras','duracion','duracionderiego','horasderiego','horariego','tiempo','horas','minutosderiego','tiempominutos','tiempohoras','tiempototal','horasefectivas','tiempodeaplicacion','tiempoprogramado','tiempodefuncionamiento','riegoenhoras','riegoenminutos','duracionhoras','duracionminutos'],
+ duration:['horastrabajadas','tiempoderiego','tiempoderiegohoras','duracion','duracionderiego','horasderiego','horariego','tiempo','horas','minutosderiego','tiempominutos','tiempohoras','tiempototal','horasefectivas','tiempodeaplicacion','tiempoprogramado','tiempodefuncionamiento','riegoenhoras','riegoenminutos','duracionhoras','duracionminutos'],
  farm:['finca','unidadproductiva','campo','hacienda','predio'],
  shift:['turno','turnoderiego','jornada','bloque'],
  lot:['lote','tablote','parcel','parcela','sector','cuadro']
@@ -19,17 +19,16 @@ function importRows(rows,name){if(!rows?.length){toast('No se encontraron regist
 function extractSheetTable(sheet){
  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,raw:true,blankrows:false});
  if(!matrix.length)return {rows:[],headerRow:0};
- const hints=['fecha','date','finca','turno','lote','riego','duracion','tiempo','hora','inicio','fin','parcela','sector','bloque','valvula','minuto','hora'];
+ const headerHints=['fecha','date','finca','turnoderiego','turno','lote','riego','duracion','tiempo','hora','inicio','fin','parcela','sector','valvula','horastrabajadas','ciclo'];
  let bestIndex=0,bestScore=-Infinity;
- for(let i=0;i<Math.min(matrix.length,60);i++){
+ for(let i=0;i<Math.min(matrix.length,100);i++){
   const cells=matrix[i]||[],values=cells.filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='');
-  if(values.length<2)continue;
-  const strings=values.filter(v=>typeof v==='string'&&!/^\\d+(?:[.,]\\d+)?$/.test(v.trim()));
-  const joined=values.map(v=>norm(v)).join(' ');
-  const hintScore=hints.reduce((n,h)=>n+(joined.includes(norm(h))?3:0),0);
-  const unique=new Set(values.map(v=>norm(v))).size;
-  const numericRatio=(values.length-strings.length)/values.length;
-  const score=values.length*1.5+strings.length*1.2+hintScore+unique*.4-numericRatio*5-(i*.015);
+  if(values.length<3)continue;
+  const normalized=values.map(v=>norm(v));
+  const hintScore=headerHints.reduce((n,h)=>n+(normalized.some(v=>v===h||v.includes(h))?1:0),0);
+  const textCount=values.filter(v=>typeof v==='string'&&!/^\\d+(?:[.,]\\d+)?$/.test(v.trim())).length;
+  const unique=new Set(normalized).size;
+  const score=hintScore*12+values.length*1.4+textCount*1.1+unique*.3-(i*.02);
   if(score>bestScore){bestScore=score;bestIndex=i}
  }
  const headers=matrix[bestIndex]||[];
@@ -44,7 +43,22 @@ function extractSheetTable(sheet){
  const rows=matrix.slice(bestIndex+1).map(line=>{const obj={};names.forEach((name,j)=>obj[name]=line?.[j]??null);return obj}).filter(r=>Object.values(r).some(v=>v!==null&&String(v).trim()!==''));
  return {rows,headerRow:bestIndex+1,headers:names};
 }
-function readFile(file){const reader=new FileReader();reader.onload=e=>{try{const wb=file.name.toLowerCase().endsWith('.csv')?XLSX.read(e.target.result,{type:'string',cellDates:true}):XLSX.read(e.target.result,{type:'array',cellDates:true});const sheet=wb.Sheets[wb.SheetNames[0]],table=extractSheetTable(sheet);importRows(table.rows,file.name);toast('Encabezados detectados en la fila '+table.headerRow+'.')}catch(err){console.error(err);toast('No se pudo leer el archivo.')}};file.name.toLowerCase().endsWith('.csv')?reader.readAsText(file):reader.readAsArrayBuffer(file)}
+function importWorkbook(wb,name){
+ workbook=wb;sourceName=name||'Libro Excel';
+ const selector=$('sheetSelector');selector.innerHTML=wb.SheetNames.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+ selector.onchange=()=>loadSelectedSheet(selector.value);
+ loadSelectedSheet(wb.SheetNames[0]);
+}
+function loadSelectedSheet(sheetName){
+ if(!workbook||!workbook.Sheets[sheetName])return;
+ activeSheetName=sheetName;
+ const table=extractSheetTable(workbook.Sheets[sheetName]);
+ if(!table.rows.length){toast('La hoja seleccionada no contiene una tabla reconocible.');return}
+ importRows(table.rows,sheetName);
+ $('sheetInfo').textContent='Hoja: '+sheetName+' · Encabezados detectados en fila '+table.headerRow+' · '+table.headers.length+' columnas · '+table.rows.length+' registros';
+ toast('Hoja "'+sheetName+'" cargada. Encabezados detectados en fila '+table.headerRow+'.');
+}
+function readFile(file){const reader=new FileReader();reader.onload=e=>{try{const wb=file.name.toLowerCase().endsWith('.csv')?XLSX.read(e.target.result,{type:'string',cellDates:true}):XLSX.read(e.target.result,{type:'array',cellDates:true});importWorkbook(wb,file.name)}catch(err){console.error(err);toast('No se pudo leer el archivo.')}};file.name.toLowerCase().endsWith('.csv')?reader.readAsText(file):reader.readAsArrayBuffer(file)}
 $('fileInput').onchange=e=>{const f=e.target.files[0];if(f)readFile(f)};
 function dateParts(v){let d=null;if(v instanceof Date&&!isNaN(v))d=v;else if(typeof v==='number'){if(v>20000&&v<80000){const p=XLSX.SSF.parse_date_code(v);if(p)d=new Date(p.y,p.m-1,p.d)}else return null}else if(v!==null&&v!==undefined&&String(v).trim()){const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);if(m){let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;d=a>12?new Date(y,b-1,a):b>12?new Date(y,a-1,b):new Date(y,b-1,a)}else{const t=Date.parse(s);if(!isNaN(t))d=new Date(t)}}if(!d||isNaN(d))return null;return {year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate(),key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}} 
 function durationHours(v){if(v===null||v===undefined||v==='')return null;const unit=$('durationUnit')?.value||'auto';if(typeof v==='number'){if(unit==='minutes')return v/60;if(unit==='hours')return v;if(unit==='auto')return v>=0&&v<1?v*24:v}const s=String(v).trim();const m=s.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);if(m)return +m[1]+(+m[2]/60)+((+m[3]||0)/3600);const n=Number(s.replace(',','.'));if(!Number.isNaN(n))return unit==='minutes'?n/60:n;return null}
@@ -61,5 +75,5 @@ $('resultCount').textContent=fmt(valid.length)+' registros con tiempo válido ·
 ['filterYear','filterMonth','filterDay','filterFarm','filterShift','filterLot'].forEach(id=>$(id).onchange=()=>renderDashboard());$('chartPeriod').onchange=renderDashboard;$('resetFilters').onclick=()=>{['filterYear','filterMonth','filterDay','filterFarm','filterShift','filterLot'].forEach(id=>Array.from($(id).options).forEach(o=>o.selected=false));renderDashboard()};
 $('clearDataset').onclick=()=>{if(!rawRows.length)return;if(!confirm('¿Eliminar los registros cargados de DATA VISTA? El Excel original de SharePoint permanecerá intacto.'))return;Object.values(charts).forEach(c=>c.destroy());charts={};rawRows=[];columns=[];$('dashboard').hidden=true;$('emptyState').hidden=false;$('connectionStatus').textContent='Datos eliminados · puedes volver a conectar el Excel';$('syncMeta').textContent='';toast('Registros eliminados. El archivo original sigue intacto.')};
 const proxyField=$('proxyUrl');proxyField.value=localStorage.getItem('dataVistaSharePointProxy')||'';proxyField.addEventListener('change',()=>localStorage.setItem('dataVistaSharePointProxy',proxyField.value.trim()));
-async function fetchSheet(){const url=$('sheetUrl').value.trim(),proxy=$('proxyUrl').value.trim();if(!url)return toast('Pega el enlace del archivo Excel.');if(!proxy)return toast('Configura el servicio de conexión.');try{const endpoint=new URL(proxy);endpoint.searchParams.set('url',url);$('connectionStatus').textContent='Descargando archivo desde SharePoint…';const res=await fetch(endpoint.toString(),{cache:'no-store'});if(!res.ok){let detail='HTTP '+res.status;try{const err=await res.json();detail=err.error||detail}catch{}throw Error(detail)}const blob=await res.blob();if(!blob.size)throw Error('El archivo descargado está vacío.');const wb=XLSX.read(await blob.arrayBuffer(),{type:'array',cellDates:true});const sheet=wb.Sheets[wb.SheetNames[0]],table=extractSheetTable(sheet),rows=table.rows;if(!rows.length)throw Error('No se encontraron filas debajo de los encabezados detectados.');importRows(rows,wb.SheetNames[0]);$('connectionStatus').textContent='Conectado · datos importados correctamente';$('syncMeta').textContent='Hoja: '+wb.SheetNames[0]+' · Encabezados detectados en fila '+table.headerRow+' · Consulta: '+new Date().toLocaleString('es-HN')+' · Pulsa de nuevo para actualizar';go('riego')}catch(e){console.error(e);$('connectionStatus').textContent='No se pudo importar el enlace';$('syncMeta').textContent=e.message;toast('Error de conexión: '+e.message)}}
+async function fetchSheet(){const url=$('sheetUrl').value.trim(),proxy=$('proxyUrl').value.trim();if(!url)return toast('Pega el enlace del archivo Excel.');if(!proxy)return toast('Configura el servicio de conexión.');try{const endpoint=new URL(proxy);endpoint.searchParams.set('url',url);$('connectionStatus').textContent='Descargando archivo desde SharePoint…';const res=await fetch(endpoint.toString(),{cache:'no-store'});if(!res.ok){let detail='HTTP '+res.status;try{const err=await res.json();detail=err.error||detail}catch{}throw Error(detail)}const blob=await res.blob();if(!blob.size)throw Error('El archivo descargado está vacío.');const wb=XLSX.read(await blob.arrayBuffer(),{type:'array',cellDates:true});importWorkbook(wb,'Libro de SharePoint');$('connectionStatus').textContent='Conectado · libro importado correctamente';$('syncMeta').textContent=wb.SheetNames.length+' hojas disponibles · Consulta: '+new Date().toLocaleString('es-HN')+' · Puedes elegir la hoja que deseas analizar';go('riego')}catch(e){console.error(e);$('connectionStatus').textContent='No se pudo importar el enlace';$('syncMeta').textContent=e.message;toast('Error de conexión: '+e.message)}}
 $('connectSheet').onclick=fetchSheet;
