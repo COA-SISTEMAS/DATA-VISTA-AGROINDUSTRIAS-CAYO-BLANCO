@@ -47,22 +47,46 @@ function buildDynamicFilters(){
  selectedCols.forEach((col,i)=>{const values=[...new Set(rawRows.map(r=>valueFor(r,col)))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));const label=document.createElement('label');label.textContent=col;const select=document.createElement('select');select.multiple=true;select.dataset.column=col;select.innerHTML=values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');(previous[col]||[]).forEach(v=>{const o=Array.from(select.options).find(x=>x.value===v);if(o)o.selected=true});select.onchange=renderDashboard;label.appendChild(select);container.appendChild(label)});
 }
 function getFilteredRows(){const filters=Array.from($('dynamicFilters').querySelectorAll('select')).map(s=>({column:s.dataset.column,values:Array.from(s.selectedOptions).map(o=>o.value)}));return rawRows.filter(r=>filters.every(f=>!f.values.length||f.values.includes(valueFor(r,f.column))))}
-function makeChart(id,labels,values){const el=$(id);if(!el||!window.Chart)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{label:$('valueColumn').value||'Valor',data:values,backgroundColor:'#42b99a',borderRadius:5,maxBarThickness:42}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' '+($('durationUnit').value==='minutes'?'minutos':'horas')}}},scales:{y:{beginAtZero:true,title:{display:true,text:$('durationUnit').value==='minutes'?'Minutos':'Horas'}},x:{ticks:{autoSkip:true,maxRotation:45}}}}})}
+const chartPalette=['#16A085','#2874A6','#E67E22','#8E44AD','#D35400','#2E86C1','#C0392B','#27AE60','#7D3C98','#B7950B','#148F77','#AF601A','#5D6D7E','#CA6F1E','#1F618D','#A93226'];
+function makeDynamicChart(canvas,labels,values,title,index){
+ const colors=labels.map((_,i)=>chartPalette[i%chartPalette.length]);
+ const chart=new Chart(canvas,{type:'bar',data:{labels,datasets:[{label:$('valueColumn').value||'Valor',data:values,backgroundColor:colors,borderColor:colors.map(c=>c),borderWidth:1,borderRadius:8,maxBarThickness:48,hoverBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:false},tooltip:{backgroundColor:'#173746',padding:12,displayColors:true,callbacks:{label:c=>fmt(c.raw)+' '+($('durationUnit').value==='minutes'?'minutos':'horas')}}},scales:{y:{beginAtZero:true,grid:{color:'#edf1f3'},ticks:{color:'#74858d'},title:{display:true,text:$('durationUnit').value==='minutes'?'Minutos':'Horas',color:'#536b75'}},x:{grid:{display:false},ticks:{color:'#536b75',autoSkip:true,maxRotation:35,minRotation:0}}}}});
+ charts['dynamic_'+index]=chart;
+}
+function renderDynamicCharts(valid){
+ const container=$('dynamicCharts'),selectedCols=getSelectedFilterColumns();
+ Object.keys(charts).filter(k=>k.startsWith('dynamic_')).forEach(k=>{charts[k].destroy();delete charts[k]});
+ container.innerHTML='';
+ if(!selectedCols.length){container.innerHTML='<div class="empty-chart-state">Selecciona columnas en «Configurar columnas» para generar sus gráficas.</div>';return}
+ selectedCols.forEach((col,index)=>{
+  const grouped=new Map();
+  valid.forEach(x=>{const label=valueFor(x.row,col);grouped.set(label,(grouped.get(label)||0)+x.value)});
+  const entries=[...grouped.entries()].sort((a,b)=>b[1]-a[1]);
+  const card=document.createElement('article');card.className='dynamic-chart-card';
+  const heading=document.createElement('div');heading.className='dynamic-chart-heading';
+  const eyebrow=document.createElement('span');eyebrow.textContent='ANÁLISIS POR COLUMNA';
+  const title=document.createElement('h3');title.textContent=col;
+  const meta=document.createElement('small');meta.textContent=entries.length+' categorías · '+fmt(entries.reduce((s,x)=>s+x[1],0))+' '+($('durationUnit').value==='minutes'?'min':'h');
+  heading.append(eyebrow,title,meta);
+  const box=document.createElement('div');box.className='dynamic-chart-box';
+  const canvas=document.createElement('canvas');canvas.id='dynamicChart'+index;box.appendChild(canvas);
+  card.append(heading,box);container.appendChild(card);
+  if(entries.length)makeDynamicChart(canvas,entries.map(x=>x[0]),entries.map(x=>Number(x[1].toFixed(3))),col,index);
+  else box.innerHTML='<div class="empty-chart-state">No hay valores para mostrar con los filtros actuales.</div>';
+ });
+}
 function renderDashboard(){
  if(!rawRows.length)return;
- const valueCol=$('valueColumn').value,dimension=$('chartDimension').value,filterCols=getSelectedFilterColumns();
+ const valueCol=$('valueColumn').value,filterCols=getSelectedFilterColumns();
  buildDynamicFilters();
  const data=getFilteredRows(),valid=data.map(r=>({row:r,value:durationHours(r[valueCol])})).filter(x=>x.value!==null&&x.value>=0);
  const total=valid.reduce((s,x)=>s+x.value,0),avg=valid.length?total/valid.length:0,max=valid.length?Math.max(...valid.map(x=>x.value)):0;
- $('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+( $('durationUnit').value==='minutes'?' min':' h');$('metricAverage').textContent=fmt(avg)+( $('durationUnit').value==='minutes'?' min':' h');$('metricMax').textContent=fmt(max)+( $('durationUnit').value==='minutes'?' min':' h');
- const groups=new Map();valid.forEach(x=>{const key=dimension?valueFor(x.row,dimension):'Total';groups.set(key,(groups.get(key)||0)+x.value)});
- const entries=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es',{numeric:true}));
- makeChart('timeChart',entries.map(x=>x[0]),entries.map(x=>Number(x[1].toFixed(3))));
- $('chartSubtitle').textContent=dimension?'Agrupado por: '+dimension:'Total general';
- $('mappingStatus').textContent='Columnas detectadas: '+columns.length+' · Filtros activos disponibles: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
+ $('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+($('durationUnit').value==='minutes'?' min':' h');$('metricAverage').textContent=fmt(avg)+($('durationUnit').value==='minutes'?' min':' h');$('metricMax').textContent=fmt(max)+($('durationUnit').value==='minutes'?' min':' h');
+ $('mappingStatus').textContent='Columnas detectadas: '+columns.length+' · Filtros disponibles: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
  $('resultCount').textContent=fmt(valid.length)+' registros con valor válido · '+fmt(data.length)+' registros filtrados';
- const displayCols=[...new Set([valueCol,dimension,...filterCols].filter(Boolean))],shown=data.slice(0,250);
+ const displayCols=[...new Set([valueCol,...filterCols].filter(Boolean))],shown=data.slice(0,250);
  $('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr>'+displayCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+shown.map(r=>'<tr>'+displayCols.map(c=>'<td>'+esc(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros seleccionados.';
+ renderDynamicCharts(valid);
 }
 $('clearDataset').onclick=()=>{if(!rawRows.length)return;if(!confirm('¿Eliminar los registros cargados de DATA VISTA? El Excel original de SharePoint permanecerá intacto.'))return;Object.values(charts).forEach(c=>c.destroy());charts={};rawRows=[];columns=[];$('dashboard').hidden=true;$('emptyState').hidden=false;$('connectionStatus').textContent='Datos eliminados · puedes volver a conectar el Excel';$('syncMeta').textContent='';toast('Registros eliminados. El archivo original sigue intacto.')};
 const proxyField=$('proxyUrl');proxyField.value=localStorage.getItem('dataVistaSharePointProxy')||'';proxyField.addEventListener('change',()=>localStorage.setItem('dataVistaSharePointProxy',proxyField.value.trim()));
