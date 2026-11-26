@@ -5,74 +5,65 @@ function go(s){document.querySelectorAll('.page-section').forEach(x=>x.classList
 document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>go(b.dataset.section));document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));$('mobileMenu').onclick=()=>$('sidebar').classList.toggle('open');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
-const synonyms={
- date:['fecha','date','dia','fechariego','fechadeprogramacion','fechaderiego','dia deriego'],
- duration:['horastrabajadas','tiempoderiego','tiempoderiegohoras','duracion','duracionderiego','horasderiego','horariego','tiempo','horas','minutosderiego','tiempominutos','tiempohoras','tiempototal','horasefectivas','tiempodeaplicacion','tiempoprogramado','tiempodefuncionamiento','riegoenhoras','riegoenminutos','duracionhoras','duracionminutos'],
- farm:['finca','unidadproductiva','campo','hacienda','predio'],
- shift:['turno','turnoderiego','jornada','bloque'],
- lot:['lote','tablote','parcel','parcela','sector','cuadro']
-};
-function detectColumn(kind){const keys=synonyms[kind].map(norm);return columns.find(c=>keys.includes(norm(c)))||columns.find(c=>keys.some(k=>k.length>3&&(norm(c).includes(k)||k.includes(norm(c)))))||''}
-function fillMapping(id,selected){const el=$(id);el.innerHTML='<option value="">— No asignado —</option>'+columns.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');el.value=selected&&columns.includes(selected)?selected:''}
-function configureMappings(){fillMapping('mapDate',detectColumn('date'));fillMapping('mapDuration',detectColumn('duration'));fillMapping('mapFarm',detectColumn('farm'));fillMapping('mapShift',detectColumn('shift'));fillMapping('mapLot',detectColumn('lot'));$('dashboard').hidden=false;$('emptyState').hidden=true;['mapDate','mapDuration','mapFarm','mapShift','mapLot','durationUnit'].forEach(id=>$(id).onchange=renderDashboard);$('autoMap').onclick=()=>{configureMappings();renderDashboard();toast('Se revisaron los encabezados disponibles.')};renderDashboard()}
+const synonyms={duration:['horastrabajadas','tiempoderiego','tiempoderiegohoras','duracion','duracionderiego','horasderiego','horariego','tiempo','horas','minutosderiego','tiempominutos','tiempohoras','tiempototal','horasefectivas','tiempodeaplicacion','tiempoprogramado','tiempodefuncionamiento','riegoenhoras','riegoenminutos','duracionhoras','duracionminutos']};
+function detectValueColumn(){const keys=synonyms.duration.map(norm);return columns.find(c=>keys.includes(norm(c)))||columns.find(c=>keys.some(k=>norm(c).includes(k)))||columns.find(c=>rawRows.some(r=>numericValue(r[c])!==null))||''}
+function numericValue(v){if(v===null||v===undefined||v==='')return null;if(typeof v==='number')return Number.isFinite(v)?v:null;const s=String(v).trim(),m=s.match(/^(\\d+):(\\d{1,2})(?::(\\d{1,2}))?$/);if(m)return +m[1]+(+m[2]/60)+((+m[3]||0)/3600);const n=Number(s.replace(',','.'));return Number.isFinite(n)?n:null}
+function durationHours(v){const n=numericValue(v);if(n===null)return null;const unit=$('durationUnit')?.value||'auto';if(unit==='minutes')return n/60;if(unit==='hours')return n;if(unit==='auto'&&typeof v==='number'&&n>=0&&n<1)return n*24;return n}
+function fillSelect(id,values,selectedValue){const el=$(id);el.innerHTML=values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');if(selectedValue&&values.includes(selectedValue))el.value=selectedValue}
+function configureMappings(){
+ $('dashboard').hidden=false;$('emptyState').hidden=true;
+ const value=detectValueColumn();fillSelect('valueColumn',columns,value);
+ $('durationUnit').value='auto';
+ $('filterColumnChoices').innerHTML=columns.map((c,i)=>'<label class="column-choice"><input type="checkbox" value="'+esc(c)+'" checked><span>'+esc(c)+'</span></label>').join('');
+ fillSelect('chartDimension',columns.filter(c=>c!==value),columns.find(c=>c!==value)||'');
+ $('valueColumn').onchange=()=>{fillSelect('chartDimension',columns.filter(c=>c!==$('valueColumn').value),columns.find(c=>c!==$('valueColumn').value)||'');renderDashboard()};
+ $('durationUnit').onchange=renderDashboard;
+ $('chartDimension').onchange=renderDashboard;
+ $('filterColumnChoices').querySelectorAll('input').forEach(x=>x.onchange=renderDashboard);
+ $('resetColumnConfig').onclick=()=>{configureMappings();toast('Configuración restablecida para esta hoja.')};
+ $('resetFilters').onclick=()=>{document.querySelectorAll('#dynamicFilters select').forEach(s=>Array.from(s.options).forEach(o=>o.selected=false));renderDashboard()};
+ renderDashboard();
+}
 function importRows(rows,name){if(!rows?.length){toast('No se encontraron registros.');return}rawRows=rows.filter(r=>r&&Object.values(r).some(v=>v!==null&&v!==''));if(!rawRows.length){toast('La hoja no contiene filas con datos.');return}columns=Object.keys(rawRows[0]||{});sourceName=name||'Archivo Excel';configureMappings();toast('Archivo cargado: '+rawRows.length+' registros y '+columns.length+' columnas.')}
 function extractSheetTable(sheet){
  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,raw:true,blankrows:false});
- if(!matrix.length)return {rows:[],headerRow:0};
- const headerHints=['fecha','date','finca','turnoderiego','turno','lote','riego','duracion','tiempo','hora','inicio','fin','parcela','sector','valvula','horastrabajadas','ciclo'];
- let bestIndex=0,bestScore=-Infinity;
- for(let i=0;i<Math.min(matrix.length,100);i++){
-  const cells=matrix[i]||[],values=cells.filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='');
-  if(values.length<3)continue;
-  const normalized=values.map(v=>norm(v));
-  const hintScore=headerHints.reduce((n,h)=>n+(normalized.some(v=>v===h||v.includes(h))?1:0),0);
-  const textCount=values.filter(v=>typeof v==='string'&&!/^\\d+(?:[.,]\\d+)?$/.test(v.trim())).length;
-  const unique=new Set(normalized).size;
-  const score=hintScore*12+values.length*1.4+textCount*1.1+unique*.3-(i*.02);
-  if(score>bestScore){bestScore=score;bestIndex=i}
- }
- const headers=matrix[bestIndex]||[];
- const width=Math.max(...matrix.slice(bestIndex).map(r=>(r||[]).length),headers.length);
+ if(!matrix.length)return {rows:[],headerRow:1,headers:[]};
+ const headers=matrix[0]||[],width=Math.max(headers.length,...matrix.slice(1).map(r=>(r||[]).length));
  const names=[],used=new Set();
- for(let j=0;j<width;j++){
-  let name=headers[j]===null||headers[j]===undefined?'':String(headers[j]).trim();
-  if(!name)name='Columna '+(j+1);
-  let uniqueName=name,n=2;while(used.has(norm(uniqueName)))uniqueName=name+' ('+(n++)+')';
-  used.add(norm(uniqueName));names.push(uniqueName);
- }
- const rows=matrix.slice(bestIndex+1).map(line=>{const obj={};names.forEach((name,j)=>obj[name]=line?.[j]??null);return obj}).filter(r=>Object.values(r).some(v=>v!==null&&String(v).trim()!==''));
- return {rows,headerRow:bestIndex+1,headers:names};
+ for(let j=0;j<width;j++){let name=headers[j]===null||headers[j]===undefined?'':String(headers[j]).trim();if(!name)name='Columna '+(j+1);let uniqueName=name,n=2;while(used.has(norm(uniqueName)))uniqueName=name+' ('+(n++)+')';used.add(norm(uniqueName));names.push(uniqueName)}
+ const rows=matrix.slice(1).map(line=>{const obj={};names.forEach((name,j)=>obj[name]=line?.[j]??null);return obj}).filter(r=>Object.values(r).some(v=>v!==null&&String(v).trim()!==''));
+ return {rows,headerRow:1,headers:names};
 }
-function importWorkbook(wb,name){
- workbook=wb;sourceName=name||'Libro Excel';
- const selector=$('sheetSelector');selector.innerHTML=wb.SheetNames.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
- selector.onchange=()=>loadSelectedSheet(selector.value);
- loadSelectedSheet(wb.SheetNames[0]);
-}
-function loadSelectedSheet(sheetName){
- if(!workbook||!workbook.Sheets[sheetName])return;
- activeSheetName=sheetName;
- const table=extractSheetTable(workbook.Sheets[sheetName]);
- if(!table.rows.length){toast('La hoja seleccionada no contiene una tabla reconocible.');return}
- importRows(table.rows,sheetName);
- $('sheetInfo').textContent='Hoja: '+sheetName+' · Encabezados detectados en fila '+table.headerRow+' · '+table.headers.length+' columnas · '+table.rows.length+' registros';
- toast('Hoja "'+sheetName+'" cargada. Encabezados detectados en fila '+table.headerRow+'.');
-}
+function importWorkbook(wb,name){workbook=wb;sourceName=name||'Libro Excel';const selector=$('sheetSelector');selector.innerHTML=wb.SheetNames.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');selector.onchange=()=>loadSelectedSheet(selector.value);loadSelectedSheet(wb.SheetNames[0])}
+function loadSelectedSheet(sheetName){if(!workbook||!workbook.Sheets[sheetName])return;activeSheetName=sheetName;const table=extractSheetTable(workbook.Sheets[sheetName]);if(!table.rows.length){toast('La hoja seleccionada no contiene registros debajo de la fila 1.');return}importRows(table.rows,sheetName);$('sheetInfo').textContent='Hoja: '+sheetName+' · Encabezados en fila 1 · '+table.headers.length+' columnas · '+table.rows.length+' registros';toast('Hoja "'+sheetName+'" cargada.')}
 function readFile(file){const reader=new FileReader();reader.onload=e=>{try{const wb=file.name.toLowerCase().endsWith('.csv')?XLSX.read(e.target.result,{type:'string',cellDates:true}):XLSX.read(e.target.result,{type:'array',cellDates:true});importWorkbook(wb,file.name)}catch(err){console.error(err);toast('No se pudo leer el archivo.')}};file.name.toLowerCase().endsWith('.csv')?reader.readAsText(file):reader.readAsArrayBuffer(file)}
 $('fileInput').onchange=e=>{const f=e.target.files[0];if(f)readFile(f)};
-function dateParts(v){let d=null;if(v instanceof Date&&!isNaN(v))d=v;else if(typeof v==='number'){if(v>20000&&v<80000){const p=XLSX.SSF.parse_date_code(v);if(p)d=new Date(p.y,p.m-1,p.d)}else return null}else if(v!==null&&v!==undefined&&String(v).trim()){const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);if(m){let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;d=a>12?new Date(y,b-1,a):b>12?new Date(y,a-1,b):new Date(y,b-1,a)}else{const t=Date.parse(s);if(!isNaN(t))d=new Date(t)}}if(!d||isNaN(d))return null;return {year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate(),key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}} 
-function durationHours(v){if(v===null||v===undefined||v==='')return null;const unit=$('durationUnit')?.value||'auto';if(typeof v==='number'){if(unit==='minutes')return v/60;if(unit==='hours')return v;if(unit==='auto')return v>=0&&v<1?v*24:v}const s=String(v).trim();const m=s.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);if(m)return +m[1]+(+m[2]/60)+((+m[3]||0)/3600);const n=Number(s.replace(',','.'));if(!Number.isNaN(n))return unit==='minutes'?n/60:n;return null}
-function getData(){const map={date:$('mapDate').value,duration:$('mapDuration').value,farm:$('mapFarm').value,shift:$('mapShift').value,lot:$('mapLot').value};return rawRows.map((r,i)=>{const dt=map.date?dateParts(r[map.date]):null,dur=map.duration?durationHours(r[map.duration]):null;return {raw:r,index:i,date:dt,duration:dur,farm:map.farm?String(r[map.farm]??'Sin finca'):'Sin finca',shift:map.shift?String(r[map.shift]??'Sin turno'):'Sin turno',lot:map.lot?String(r[map.lot]??'Sin lote'):'Sin lote'}})}
-function selected(id){return Array.from($(id).selectedOptions).map(o=>o.value)}
-function fillFilter(id,values){const el=$(id),previous=selected(id),uniq=[...new Set(values.filter(v=>v!==null&&v!==undefined&&v!=='').map(String))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));el.innerHTML=uniq.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');previous.forEach(v=>{const o=[...el.options].find(x=>x.value===v);if(o)o.selected=true})}
-function buildFilters(rows){const dated=rows.filter(x=>x.date);fillFilter('filterYear',dated.map(x=>x.date.year));fillFilter('filterMonth',dated.map(x=>String(x.date.month).padStart(2,'0')));fillFilter('filterDay',dated.map(x=>String(x.date.day).padStart(2,'0')));fillFilter('filterFarm',rows.map(x=>x.farm));fillFilter('filterShift',rows.map(x=>x.shift));fillFilter('filterLot',rows.map(x=>x.lot))}
-function filtered(rows){const f={year:selected('filterYear'),month:selected('filterMonth'),day:selected('filterDay'),farm:selected('filterFarm'),shift:selected('filterShift'),lot:selected('filterLot')};return rows.filter(x=>(!f.year.length||(x.date&&f.year.includes(String(x.date.year))))&&(!f.month.length||(x.date&&f.month.includes(String(x.date.month).padStart(2,'0'))))&&(!f.day.length||(x.date&&f.day.includes(String(x.date.day).padStart(2,'0'))))&&(!f.farm.length||f.farm.includes(x.farm))&&(!f.shift.length||f.shift.includes(x.shift))&&(!f.lot.length||f.lot.includes(x.lot)))}
-function aggregate(rows,keyFn){const map=new Map();rows.forEach(r=>{if(r.duration===null||!Number.isFinite(r.duration))return;const k=keyFn(r);map.set(k,(map.get(k)||0)+r.duration)});return [...map.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'es',{numeric:true}))}
-function makeChart(id,labels,values,horizontal=false){const el=$(id);if(!el||!window.Chart)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{label:'Horas de riego',data:values,backgroundColor:'#42b99a',borderRadius:5,maxBarThickness:42}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' horas'}}},scales:{y:{beginAtZero:true,title:{display:true,text:horizontal?'':'Horas'}},x:{ticks:{autoSkip:true,maxRotation:45}}}}})}
-function renderDashboard(){if(!rawRows.length)return;const rows=getData(),mapDate=$('mapDate').value,mapDur=$('mapDuration').value;const status=[];if(!mapDate)status.push('fecha');if(!mapDur)status.push('tiempo de riego');['mapFarm','mapShift','mapLot'].forEach((id,i)=>{if(!$(id).value)status.push(['finca','turno','lote'][i])});$('mappingStatus').textContent=status.length?'Asigna manualmente: '+status.join(', ')+'. Las gráficas estarán completas cuando estén asignadas.':'Columnas asignadas. Puedes modificarlas en cualquier momento.';const all=getData();buildFilters(all);const data=filtered(all),valid=data.filter(x=>x.duration!==null&&Number.isFinite(x.duration)&&x.duration>=0),total=valid.reduce((s,x)=>s+x.duration,0),avg=valid.length?total/valid.length:0,max=valid.length?Math.max(...valid.map(x=>x.duration)):0;$('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+' h';$('metricAverage').textContent=fmt(avg)+' h';$('metricMax').textContent=fmt(max)+' h';
-const period=$('chartPeriod').value,periodRows=aggregate(valid,x=>!x.date?'Sin fecha':period==='year'?String(x.date.year):period==='month'?x.date.year+'-'+String(x.date.month).padStart(2,'0'):x.date.key);makeChart('timeChart',periodRows.map(x=>x[0]),periodRows.map(x=>Number(x[1].toFixed(3))));for(const [id,key] of [['farmChart','farm'],['shiftChart','shift'],['lotChart','lot']]){const a=aggregate(valid,x=>x[key]);makeChart(id,a.map(x=>x[0]),a.map(x=>Number(x[1].toFixed(3))),true)}
-$('resultCount').textContent=fmt(valid.length)+' registros con tiempo válido · '+fmt(data.length)+' registros filtrados';const shown=valid.slice(0,250);$('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr><th>Fecha</th><th>Finca</th><th>Turno</th><th>Lote</th><th>Tiempo (h)</th></tr></thead><tbody>'+shown.map(x=>'<tr><td>'+esc(x.date?.key||'—')+'</td><td>'+esc(x.farm)+'</td><td>'+esc(x.shift)+'</td><td>'+esc(x.lot)+'</td><td>'+fmt(x.duration)+'</td></tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros y columnas seleccionadas.'}
-['filterYear','filterMonth','filterDay','filterFarm','filterShift','filterLot'].forEach(id=>$(id).onchange=()=>renderDashboard());$('chartPeriod').onchange=renderDashboard;$('resetFilters').onclick=()=>{['filterYear','filterMonth','filterDay','filterFarm','filterShift','filterLot'].forEach(id=>Array.from($(id).options).forEach(o=>o.selected=false));renderDashboard()};
+function valueFor(row,col){return row[col]===null||row[col]===undefined||String(row[col]).trim()===''?'(Vacío)':String(row[col])}
+function getSelectedFilterColumns(){return Array.from($('filterColumnChoices').querySelectorAll('input:checked')).map(x=>x.value)}
+function buildDynamicFilters(){
+ const selectedCols=getSelectedFilterColumns(),container=$('dynamicFilters'),previous={};
+ container.querySelectorAll('select').forEach(s=>previous[s.dataset.column]=Array.from(s.selectedOptions).map(o=>o.value));
+ container.innerHTML='';
+ selectedCols.forEach((col,i)=>{const values=[...new Set(rawRows.map(r=>valueFor(r,col)))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));const label=document.createElement('label');label.textContent=col;const select=document.createElement('select');select.multiple=true;select.dataset.column=col;select.innerHTML=values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');(previous[col]||[]).forEach(v=>{const o=Array.from(select.options).find(x=>x.value===v);if(o)o.selected=true});select.onchange=renderDashboard;label.appendChild(select);container.appendChild(label)});
+}
+function getFilteredRows(){const filters=Array.from($('dynamicFilters').querySelectorAll('select')).map(s=>({column:s.dataset.column,values:Array.from(s.selectedOptions).map(o=>o.value)}));return rawRows.filter(r=>filters.every(f=>!f.values.length||f.values.includes(valueFor(r,f.column))))}
+function makeChart(id,labels,values){const el=$(id);if(!el||!window.Chart)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{label:$('valueColumn').value||'Valor',data:values,backgroundColor:'#42b99a',borderRadius:5,maxBarThickness:42}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' '+($('durationUnit').value==='minutes'?'minutos':'horas')}}},scales:{y:{beginAtZero:true,title:{display:true,text:$('durationUnit').value==='minutes'?'Minutos':'Horas'}},x:{ticks:{autoSkip:true,maxRotation:45}}}}})}
+function renderDashboard(){
+ if(!rawRows.length)return;
+ const valueCol=$('valueColumn').value,dimension=$('chartDimension').value,filterCols=getSelectedFilterColumns();
+ buildDynamicFilters();
+ const data=getFilteredRows(),valid=data.map(r=>({row:r,value:durationHours(r[valueCol])})).filter(x=>x.value!==null&&x.value>=0);
+ const total=valid.reduce((s,x)=>s+x.value,0),avg=valid.length?total/valid.length:0,max=valid.length?Math.max(...valid.map(x=>x.value)):0;
+ $('metricRecords').textContent=fmt(data.length);$('metricTotal').textContent=fmt(total)+( $('durationUnit').value==='minutes'?' min':' h');$('metricAverage').textContent=fmt(avg)+( $('durationUnit').value==='minutes'?' min':' h');$('metricMax').textContent=fmt(max)+( $('durationUnit').value==='minutes'?' min':' h');
+ const groups=new Map();valid.forEach(x=>{const key=dimension?valueFor(x.row,dimension):'Total';groups.set(key,(groups.get(key)||0)+x.value)});
+ const entries=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es',{numeric:true}));
+ makeChart('timeChart',entries.map(x=>x[0]),entries.map(x=>Number(x[1].toFixed(3))));
+ $('chartSubtitle').textContent=dimension?'Agrupado por: '+dimension:'Total general';
+ $('mappingStatus').textContent='Columnas detectadas: '+columns.length+' · Filtros activos disponibles: '+filterCols.length+'. Los campos proceden de la fila 1 de la hoja.';
+ $('resultCount').textContent=fmt(valid.length)+' registros con valor válido · '+fmt(data.length)+' registros filtrados';
+ const displayCols=[...new Set([valueCol,dimension,...filterCols].filter(Boolean))],shown=data.slice(0,250);
+ $('resultsTable').innerHTML=shown.length?'<table class="data-table"><thead><tr>'+displayCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+shown.map(r=>'<tr>'+displayCols.map(c=>'<td>'+esc(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table>':'No hay registros que coincidan con los filtros seleccionados.';
+}
 $('clearDataset').onclick=()=>{if(!rawRows.length)return;if(!confirm('¿Eliminar los registros cargados de DATA VISTA? El Excel original de SharePoint permanecerá intacto.'))return;Object.values(charts).forEach(c=>c.destroy());charts={};rawRows=[];columns=[];$('dashboard').hidden=true;$('emptyState').hidden=false;$('connectionStatus').textContent='Datos eliminados · puedes volver a conectar el Excel';$('syncMeta').textContent='';toast('Registros eliminados. El archivo original sigue intacto.')};
 const proxyField=$('proxyUrl');proxyField.value=localStorage.getItem('dataVistaSharePointProxy')||'';proxyField.addEventListener('change',()=>localStorage.setItem('dataVistaSharePointProxy',proxyField.value.trim()));
 async function fetchSheet(){const url=$('sheetUrl').value.trim(),proxy=$('proxyUrl').value.trim();if(!url)return toast('Pega el enlace del archivo Excel.');if(!proxy)return toast('Configura el servicio de conexión.');try{const endpoint=new URL(proxy);endpoint.searchParams.set('url',url);$('connectionStatus').textContent='Descargando archivo desde SharePoint…';const res=await fetch(endpoint.toString(),{cache:'no-store'});if(!res.ok){let detail='HTTP '+res.status;try{const err=await res.json();detail=err.error||detail}catch{}throw Error(detail)}const blob=await res.blob();if(!blob.size)throw Error('El archivo descargado está vacío.');const wb=XLSX.read(await blob.arrayBuffer(),{type:'array',cellDates:true});importWorkbook(wb,'Libro de SharePoint');$('connectionStatus').textContent='Conectado · libro importado correctamente';$('syncMeta').textContent=wb.SheetNames.length+' hojas disponibles · Consulta: '+new Date().toLocaleString('es-HN')+' · Puedes elegir la hoja que deseas analizar';go('riego')}catch(e){console.error(e);$('connectionStatus').textContent='No se pudo importar el enlace';$('syncMeta').textContent=e.message;toast('Error de conexión: '+e.message)}}
