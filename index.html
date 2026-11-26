@@ -2,24 +2,24 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102b3a">
-<meta name="description" content="DATA VISTA: análisis dinámico del tiempo de riego."><title>DATA VISTA | Análisis de riego </title>
+<meta name="description" content="DATA VISTA: análisis dinámico de datos desde archivos Excel."><title>DATA VISTA | Análisis de riego </title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css"><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body><div class="shell">
 <aside class="sidebar" id="sidebar">
-<a class="brand" href="#"><span class="brand-icon">DV</span><span><b>DATA VISTA</b><small>ANÁLISIS DE RIEGO</small></span></a>
+<a class="brand" href="#"><span class="brand-icon">DV</span><span><b>DATA VISTA</b><small>ANÁLISIS DE DATOS</small></span></a>
 <p class="nav-caption">PANEL PRINCIPAL</p><nav>
-<button class="nav-item active" data-section="riego">◷　Análisis de riego</button>
+<button class="nav-item active" data-section="riego">▦　Análisis de datos</button>
 <button class="nav-item" data-section="conexiones">⟳　Conexión Excel</button>
 </nav>
 <div class="side-foot">● Procesamiento local activado<br><small>Los datos se analizan en este dispositivo</small></div>
 </aside>
-<main class="main"><header class="topbar"><button id="mobileMenu" class="mobile-menu">☰</button><span>DATA VISTA　/　<b id="crumb">Análisis de riego</b></span><small>● Panel especializado</small></header>
+<main class="main"><header class="topbar"><button id="mobileMenu" class="mobile-menu">☰</button><span>DATA VISTA　/　<b id="crumb">Análisis de datos</b></span><small>● Panel dinámico</small></header>
 <div class="content">
 <section class="page-section visible" id="section-riego">
-<div class="page-title"><label>AGROINDUSTRIAS CAYO BLANCO</label><h1>Análisis de tiempo de riego</h1><p>Filtra por fecha, finca, turno y lote. Las gráficas se actualizan automáticamente con los registros importados.</p></div>
-<div class="panel" id="emptyState"><h3>Conecta tu archivo de programación </h3><p>Importa el Excel desde SharePoint para comenzar a analizar el tiempo de riego.</p><button class="btn primary" data-goto="conexiones">Conectar Excel</button> <label class="btn" for="fileInput">Subir archivo</label><input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" style="display:none"></div>
+<div class="page-title"><label id="sourceLabel">ANÁLISIS DE ARCHIVO</label><h1 id="analysisTitle">Análisis de datos</h1><p id="analysisDescription">Explora, filtra y compara la información de cualquier archivo Excel.</p></div>
+<div class="panel" id="emptyState"><h3>Conecta tu archivo</h3><p>Importa el Excel desde SharePoint para comenzar a analizar el tiempo de riego.</p><button class="btn primary" data-goto="conexiones">Conectar Excel</button> <label class="btn" for="fileInput">Subir archivo</label><input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" style="display:none"></div>
 <div id="dashboard" hidden>
 <div class="panel sheet-panel">
 <div class="section-heading"><div><h3>Hoja de cálculo</h3><p>Este libro contiene varias hojas. Elige cuál quieres analizar.</p></div><label class="sheet-choice">Hoja a analizar <select id="sheetSelector"></select></label></div>
@@ -42,12 +42,12 @@
 </div>
 <div class="metrics" id="summaryMetrics">
 <div class="metric"><small>Registros filtrados</small><b id="metricRecords">0</b></div>
-<div class="metric"><small>Tiempo total de riego</small><b id="metricTotal">0 h</b></div>
-<div class="metric"><small>Promedio por registro</small><b id="metricAverage">0 h</b></div>
-<div class="metric"><small>Tiempo máximo</small><b id="metricMax">0 h</b></div>
+<div class="metric"><small id="metricTotalLabel">Suma de valores</small><b id="metricTotal">0 h</b></div>
+<div class="metric"><small id="metricAverageLabel">Promedio por registro</small><b id="metricAverage">0 h</b></div>
+<div class="metric"><small id="metricMaxLabel">Valor máximo</small><b id="metricMax">0 h</b></div>
 </div>
 <section class="records-panel panel"><div class="records-heading"><div class="records-heading-copy"><span class="section-kicker">DETALLE DE DATOS</span><h3>Registros incluidos</h3><p id="resultCount">0 registros</p></div><div class="records-actions"><button class="btn records-toggle" id="toggleRecords" type="button" aria-expanded="false" aria-controls="resultsTable"><span id="recordsToggleIcon">＋</span> <span id="recordsToggleText">Mostrar registros</span></button><button class="btn danger" id="clearDataset" type="button">Eliminar registros</button></div></div><div id="resultsTable" class="records-content" hidden>Sin registros.</div></section>
-<div class="charts-section"><div class="charts-section-title"><div><label>VISUALIZACIÓN DINÁMICA</label><h2>Gráficas por filtro de análisis</h2><p>Cada columna seleccionada para filtros tendrá su propia gráfica.</p></div></div><div id="dynamicCharts" class="dynamic-charts"></div></div>
+<div class="charts-section"><div class="charts-section-title"><div><label>VISUALIZACIÓN DINÁMICA</label><h2>Gráficas por columna</h2><p>Las gráficas se generan a partir de las columnas seleccionadas.</p></div></div><div id="dynamicCharts" class="dynamic-charts"></div></div>
 </div>
 </section>
 <section class="page-section" id="section-conexiones">
@@ -59,5 +59,5 @@
 <p id="connectionStatus" class="muted">Ningún enlace conectado</p><p id="syncMeta" class="muted"></p></div>
 <div class="panel"><h3>También puedes subir un archivo</h3><p>Admite Excel XLSX, XLS, XLSM y CSV. Los datos se procesan localmente.</p><label class="btn" for="fileInput">Seleccionar archivo</label></div>
 </section>
-<footer>© 2026 DATA VISTA <span>ANÁLISIS DE TIEMPO DE RIEGO </span></footer>
+<footer>© 2026 DATA VISTA <span>ANÁLISIS DINÁMICO DE DATOS</span></footer>
 </div></main></div><div id="toast" class="toast" role="status"></div><script type="module" src="assets/js/app.js"></script></body></html>
