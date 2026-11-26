@@ -26,27 +26,19 @@
 <p class="muted" id="sheetInfo">Selecciona una hoja para revisar sus encabezados y datos.</p>
 </div>
 <div class="panel mapping-panel">
-<div class="section-heading"><div><h3>Configurar columnas</h3><p>DATA VISTA reconoce los encabezados automáticamente. Puedes cambiar cualquier asignación.</p></div><button class="btn" id="autoMap">Reconocer automáticamente</button></div>
-<div class="mapping-grid">
-<label>Fecha <select id="mapDate"></select></label>
-<label>Tiempo de riego <select id="mapDuration"></select></label>
-<label>Finca <select id="mapFarm"></select></label>
-<label>Turno <select id="mapShift"></select></label>
-<label>Lote <select id="mapLot"></select></label>
-<label>Unidad del tiempo <select id="durationUnit"><option value="auto">Automática (hora Excel / duración)</option><option value="hours">Horas</option><option value="minutes">Minutos</option></select></label>
+<div class="section-heading"><div><h3>Configurar columnas</h3><p>Todos los nombres se obtienen directamente de los encabezados de la hoja seleccionada.</p></div><button class="btn" id="resetColumnConfig">Restablecer</button></div>
+<div class="dynamic-config-grid">
+<label>Columna cuyos valores se sumarán <select id="valueColumn"></select></label>
+<label>Unidad del valor <select id="durationUnit"><option value="auto">Automática</option><option value="hours">Horas</option><option value="minutes">Minutos</option></select></label>
+<label>Columna para la gráfica <select id="chartDimension"></select></label>
 </div>
-<p class="muted" id="mappingStatus">Asigna las columnas para generar el análisis.</p>
+<div class="available-columns"><b>Columnas disponibles para crear filtros</b><p class="muted">Marca las columnas que deseas convertir en filtros. Sus nombres y opciones saldrán de la hoja actual.</p><div id="filterColumnChoices" class="column-choices"></div></div>
+<p class="muted" id="mappingStatus">Selecciona una columna de valores y las columnas que deseas filtrar.</p>
 </div>
 <div class="panel filter-panel">
-<div class="section-heading"><div><h3>Filtros de análisis</h3><p>Selecciona uno o varios valores. Los filtros se pueden combinar.</p></div><button class="btn" id="resetFilters">Limpiar filtros</button></div>
-<div class="filter-grid">
-<label>Año<select id="filterYear" multiple></select></label>
-<label>Mes<select id="filterMonth" multiple></select></label>
-<label>Día<select id="filterDay" multiple></select></label>
-<label>Finca<select id="filterFarm" multiple></select></label>
-<label>Turno<select id="filterShift" multiple></select></label>
-<label>Lote<select id="filterLot" multiple></select></label>
-</div><small class="muted">En computadora puedes usar Ctrl para seleccionar varios valores; en móvil puedes usar selección múltiple.</small>
+<div class="section-heading"><div><h3>Filtros de análisis</h3><p>Los filtros se generan automáticamente según las columnas seleccionadas arriba.</p></div><button class="btn" id="resetFilters">Limpiar filtros</button></div>
+<div id="dynamicFilters" class="filter-grid"></div>
+<small class="muted">Puedes combinar varios filtros; las gráficas y los indicadores se actualizarán al instante.</small>
 </div>
 <div class="metrics" id="summaryMetrics">
 <div class="metric"><small>Registros filtrados</small><b id="metricRecords">0</b></div>
@@ -55,10 +47,7 @@
 <div class="metric"><small>Tiempo máximo</small><b id="metricMax">0 h</b></div>
 </div>
 <div class="chart-grid irrigation-charts">
-<div class="chart-card"><div class="section-heading"><h3>Tiempo de riego por día</h3><select id="chartPeriod"><option value="day">Día</option><option value="month">Mes</option><option value="year">Año</option></select></div><div class="chart-box"><canvas id="timeChart"></canvas></div></div>
-<div class="chart-card"><h3>Tiempo de riego por finca</h3><div class="chart-box"><canvas id="farmChart"></canvas></div></div>
-<div class="chart-card"><h3>Tiempo de riego por turno</h3><div class="chart-box"><canvas id="shiftChart"></canvas></div></div>
-<div class="chart-card"><h3>Tiempo de riego por lote</h3><div class="chart-box"><canvas id="lotChart"></canvas></div></div>
+<div class="chart-card"><div class="section-heading"><h3>Gráfica según las columnas seleccionadas</h3><span class="muted" id="chartSubtitle"></span></div><div class="chart-box"><canvas id="timeChart"></canvas></div></div>
 </div>
 <div class="panel table-wrap"><div class="section-heading"><div><h3>Registros incluidos</h3><p id="resultCount">0 registros</p></div><button class="btn danger" id="clearDataset" type="button">Eliminar registros</button></div><div id="resultsTable">Sin registros.</div></div>
 </div>
