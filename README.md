@@ -18,4 +18,4 @@ Abre `index.html` en un navegador moderno. No requiere instalación de servidor 
 
 ## Estado
 
-Versión inicial en desarrollo. Las conexiones externas y exportaciones deben validarse con fuentes y navegadores reales antes de un despliegue de producción.
+Versión inicial en desarrollo. Las conexiones externas y exportaciones deben validarse con fuentes y navegadores reales antes de un despliegue de producción,.
