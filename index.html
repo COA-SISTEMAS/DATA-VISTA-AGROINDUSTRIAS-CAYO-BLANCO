@@ -1,14 +1,72 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102b3a"><meta name="description" content="DATA VISTA: análisis estadístico y visualización de datos de campo."><title>DATA VISTA | Field Data Analytics</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/css/styles.css"><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script></head>
-<body><div class="shell"><aside class="sidebar" id="sidebar"><a class="brand" href="#"><span class="brand-icon">DV</span><span><b>DATA VISTA</b><small>FIELD DATA ANALYTICS</small></span></a><p class="nav-caption">ESPACIO DE TRABAJO</p><nav><button class="nav-item active" data-section="inicio">⌂　Inicio</button><button class="nav-item" data-section="fuentes">▤　Fuentes de datos</button><button class="nav-item" data-section="explorador">▦　Explorador de datos</button><button class="nav-item" data-section="calidad">✓　Calidad de datos</button><p class="nav-caption">ANÁLISIS</p><button class="nav-item" data-section="descriptiva">▥　Estadística descriptiva</button><button class="nav-item" data-section="categorias">◷　Variables categóricas</button><button class="nav-item" data-section="relaciones">⌁　Relaciones y cruces</button><button class="nav-item" data-section="territorial">⌖　Datos territoriales</button><button class="nav-item" data-section="informes">▧　Informes</button><button class="nav-item" data-section="conexiones">⟳　Conexiones</button></nav><div class="side-foot">● Procesamiento local activado<br><small>Versión 1.0 · Prototipo</small></div></aside><main class="main"><header class="topbar"><button id="mobileMenu" class="mobile-menu">☰</button><span>DATA VISTA　/　<b id="crumb">Inicio</b></span><small>● Datos procesados en este dispositivo</small></header><div class="content">
-<section class="page-section visible" id="section-inicio"><div class="hero"><div><label>FIELD DATA ANALYTICS PLATFORM</label><h1>Convierte tus datos<br><em>en conocimiento.</em></h1><p>Importa una base de datos y explora estadísticas, calidad, relaciones y resultados territoriales desde un solo espacio.</p><button class="btn primary" id="heroImport">＋ Importar datos</button> <button class="btn" data-goto="conexiones">Usar enlace de Excel ↗</button></div><div class="hero-graphic"><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>DATA OVERVIEW</b><small>Datos · Análisis · Decisiones</small></div></div><h2>Comienza con tus datos</h2><div class="cards"><button class="source-card" id="excelCard"><b>▦ Subir archivo Excel o CSV</b><small>Selecciona un archivo .xlsx, .xls o .csv desde tu dispositivo.</small><strong>Seleccionar archivo →</strong></button><button class="source-card" data-goto="conexiones"><b>↗ Analizar mediante enlace de Excel</b><small>Pega un enlace compartido o una URL de descarga accesible.</small><strong>Conectar enlace →</strong></button></div><h2>Estado de los datos</h2><div class="metrics"><div class="metric"><small>Registros</small><b id="homeRows">—</b></div><div class="metric"><small>Variables</small><b id="homeCols">—</b></div><div class="metric"><small>Numéricas</small><b id="homeNumeric">—</b></div><div class="metric"><small>Alertas de calidad</small><b id="homeIssues">—</b></div></div><p id="lastUpdated" class="muted">Sin datos cargados</p></section>
-<section class="page-section" id="section-fuentes"><div class="page-title"><label>GESTIÓN DE FUENTES</label><h1>Fuentes de datos</h1><p>Elige una de las dos formas disponibles para cargar tu base de datos.</p></div><div class="panel"><h3>Subir archivo</h3><label class="drop-zone" id="dropZone"><input type="file" id="fileInput" accept=".xlsx,.xls,.csv"><b>⇧ Selecciona o arrastra tu archivo aquí</b><small>Excel XLSX · XLS · CSV</small></label><p class="muted">El archivo se procesa localmente en tu dispositivo.</p></div><div class="panel"><h3>Usar enlace de Excel</h3><p class="muted">También puedes pegar un enlace de descarga directa o un archivo compartido con acceso público.</p><button class="btn primary" data-goto="conexiones">Pegar enlace de Excel →</button></div></section>
-<section class="page-section" id="section-explorador"><div class="page-title"><label>VISTA DE REGISTROS</label><h1>Explorador de datos</h1><p>Revisa la estructura y el contenido de la base importada.</p></div><div class="toolbar"><b id="datasetName">Ninguna base cargada</b><input id="tableSearch" placeholder="Buscar registros…"><button class="btn danger" id="clearDataset" type="button" disabled>Eliminar registros</button></div><div class="panel table-wrap" id="dataTable">Aún no hay datos para mostrar.</div><p id="tableFooter" class="muted">0 registros</p></section>
-<section class="page-section" id="section-calidad"><div class="page-title"><label>VALIDACIÓN Y CONSISTENCIA</label><h1>Calidad de datos</h1></div><div id="qualityContent" class="panel">Importa una base para generar el diagnóstico.</div></section>
-<section class="page-section" id="section-descriptiva"><div class="page-title"><label>ANÁLISIS CUANTITATIVO</label><h1>Estadística descriptiva</h1></div><div id="descriptiveContent" class="panel">Sin variables numéricas.</div></section>
-<section class="page-section" id="section-categorias"><div class="page-title"><label>DISTRIBUCIONES Y FRECUENCIAS</label><h1>Variables categóricas</h1></div><div id="categoryContent" class="panel">Importa datos para ver frecuencias.</div></section>
-<section class="page-section" id="section-relaciones"><div class="page-title"><label>ANÁLISIS BIVARIADO</label><h1>Relaciones y cruces</h1></div><div id="relationsContent" class="panel">Importa datos para habilitar comparaciones.</div></section>
-<section class="page-section" id="section-territorial"><div class="page-title"><label>DISTRIBUCIÓN GEOGRÁFICA</label><h1>Datos territoriales</h1></div><div id="geoContent" class="panel">Sin información territorial detectada.</div></section>
-<section class="page-section" id="section-informes"><div class="page-title"><label>RESULTADOS Y EXPORTACIÓN</label><h1>Informes</h1></div><div class="panel"><h3>Informe estadístico</h3><p>Descarga un resumen de la base analizada.</p><button class="btn primary" id="exportReport">Descargar informe PDF</button> <button class="btn" id="exportCsv">Descargar datos CSV</button></div></section>
-<section class="page-section" id="section-conexiones"><div class="page-title"><label>CARGA DESDE LA NUBE</label><h1>Enlace de Excel</h1><p>Pega el enlace del archivo para importar y analizar sus datos.</p></div><div class="panel"><label class="field-label" for="sheetUrl">Enlace compartido de Excel (SharePoint / OneDrive)</label><input id="sheetUrl" type="url" placeholder="Pega aquí el enlace compartido de Excel"><label class="field-label" for="proxyUrl">Servicio de conexión de DATA VISTA</label><input id="proxyUrl" type="url" placeholder="https://tu-servicio.workers.dev/download"><p class="muted">Este servicio gratuito actúa como puente de descarga para evitar el bloqueo CORS de SharePoint. Se configura una sola vez en este navegador.</p><button class="btn primary" id="connectSheet">Conectar y analizar</button><p id="connectionStatus" class="muted">Ningún enlace conectado</p><p id="syncMeta" class="muted"></p></div><p class="notice">El enlace de Excel debe permitir acceso anónimo y descarga. No uses enlaces con «Bloquear descarga». Consulta las instrucciones para activar el servicio de conexión.</p></section>
-<footer>© 2026 DATA VISTA <span>FIELD DATA ANALYTICS · VERSIÓN 1.0</span></footer></div></main></div><div id="toast" class="toast" role="status"></div><script type="module" src="assets/js/app.js"></script></body></html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102b3a">
+<meta name="description" content="DATA VISTA: análisis dinámico del tiempo de riego."><title>DATA VISTA | Análisis de riego</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css"><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body><div class="shell">
+<aside class="sidebar" id="sidebar">
+<a class="brand" href="#"><span class="brand-icon">DV</span><span><b>DATA VISTA</b><small>ANÁLISIS DE RIEGO</small></span></a>
+<p class="nav-caption">PANEL PRINCIPAL</p><nav>
+<button class="nav-item active" data-section="riego">◷　Análisis de riego</button>
+<button class="nav-item" data-section="conexiones">⟳　Conexión Excel</button>
+</nav>
+<div class="side-foot">● Procesamiento local activado<br><small>Los datos se analizan en este dispositivo</small></div>
+</aside>
+<main class="main"><header class="topbar"><button id="mobileMenu" class="mobile-menu">☰</button><span>DATA VISTA　/　<b id="crumb">Análisis de riego</b></span><small>● Panel especializado</small></header>
+<div class="content">
+<section class="page-section visible" id="section-riego">
+<div class="page-title"><label>AGROINDUSTRIAS CAYO BLANCO</label><h1>Análisis de tiempo de riego</h1><p>Filtra por fecha, finca, turno y lote. Las gráficas se actualizan automáticamente con los registros importados.</p></div>
+<div class="panel" id="emptyState"><h3>Conecta tu archivo de programación</h3><p>Importa el Excel desde SharePoint para comenzar a analizar el tiempo de riego.</p><button class="btn primary" data-goto="conexiones">Conectar Excel</button> <label class="btn" for="fileInput">Subir archivo</label><input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" style="display:none"></div>
+<div id="dashboard" hidden>
+<div class="panel mapping-panel">
+<div class="section-heading"><div><h3>Configurar columnas</h3><p>DATA VISTA reconoce los encabezados automáticamente. Puedes cambiar cualquier asignación.</p></div><button class="btn" id="autoMap">Reconocer automáticamente</button></div>
+<div class="mapping-grid">
+<label>Fecha <select id="mapDate"></select></label>
+<label>Tiempo de riego <select id="mapDuration"></select></label>
+<label>Finca <select id="mapFarm"></select></label>
+<label>Turno <select id="mapShift"></select></label>
+<label>Lote <select id="mapLot"></select></label>
+<label>Unidad del tiempo <select id="durationUnit"><option value="auto">Automática (hora Excel / duración)</option><option value="hours">Horas</option><option value="minutes">Minutos</option></select></label>
+</div>
+<p class="muted" id="mappingStatus">Asigna las columnas para generar el análisis.</p>
+</div>
+<div class="panel filter-panel">
+<div class="section-heading"><div><h3>Filtros de análisis</h3><p>Selecciona uno o varios valores. Los filtros se pueden combinar.</p></div><button class="btn" id="resetFilters">Limpiar filtros</button></div>
+<div class="filter-grid">
+<label>Año<select id="filterYear" multiple></select></label>
+<label>Mes<select id="filterMonth" multiple></select></label>
+<label>Día<select id="filterDay" multiple></select></label>
+<label>Finca<select id="filterFarm" multiple></select></label>
+<label>Turno<select id="filterShift" multiple></select></label>
+<label>Lote<select id="filterLot" multiple></select></label>
+</div><small class="muted">En computadora puedes usar Ctrl para seleccionar varios valores; en móvil puedes usar selección múltiple.</small>
+</div>
+<div class="metrics" id="summaryMetrics">
+<div class="metric"><small>Registros filtrados</small><b id="metricRecords">0</b></div>
+<div class="metric"><small>Tiempo total de riego</small><b id="metricTotal">0 h</b></div>
+<div class="metric"><small>Promedio por registro</small><b id="metricAverage">0 h</b></div>
+<div class="metric"><small>Tiempo máximo</small><b id="metricMax">0 h</b></div>
+</div>
+<div class="chart-grid irrigation-charts">
+<div class="chart-card"><div class="section-heading"><h3>Tiempo de riego por día</h3><select id="chartPeriod"><option value="day">Día</option><option value="month">Mes</option><option value="year">Año</option></select></div><div class="chart-box"><canvas id="timeChart"></canvas></div></div>
+<div class="chart-card"><h3>Tiempo de riego por finca</h3><div class="chart-box"><canvas id="farmChart"></canvas></div></div>
+<div class="chart-card"><h3>Tiempo de riego por turno</h3><div class="chart-box"><canvas id="shiftChart"></canvas></div></div>
+<div class="chart-card"><h3>Tiempo de riego por lote</h3><div class="chart-box"><canvas id="lotChart"></canvas></div></div>
+</div>
+<div class="panel table-wrap"><div class="section-heading"><div><h3>Registros incluidos</h3><p id="resultCount">0 registros</p></div><button class="btn danger" id="clearDataset" type="button">Eliminar registros</button></div><div id="resultsTable">Sin registros.</div></div>
+</div>
+</section>
+<section class="page-section" id="section-conexiones">
+<div class="page-title"><label>CARGA DESDE LA NUBE</label><h1>Conexión de Excel</h1><p>Conecta el archivo compartido de SharePoint. Puedes actualizar los datos sin volver a subir el libro.</p></div>
+<div class="panel"><label class="field-label" for="sheetUrl">Enlace compartido de Excel (SharePoint / OneDrive)</label><input id="sheetUrl" type="url" placeholder="Pega aquí el enlace compartido de Excel">
+<label class="field-label" for="proxyUrl">Servicio de conexión de DATA VISTA</label><input id="proxyUrl" type="url" placeholder="https://tu-servicio.workers.dev/">
+<p class="muted">El servicio puente permite descargar el Excel desde SharePoint. La dirección se guarda en este navegador.</p>
+<button class="btn primary" id="connectSheet">Conectar y analizar</button>
+<p id="connectionStatus" class="muted">Ningún enlace conectado</p><p id="syncMeta" class="muted"></p></div>
+<div class="panel"><h3>También puedes subir un archivo</h3><p>Admite Excel XLSX, XLS, XLSM y CSV. Los datos se procesan localmente.</p><label class="btn" for="fileInput">Seleccionar archivo</label></div>
+</section>
+<footer>© 2026 DATA VISTA <span>ANÁLISIS DE TIEMPO DE RIEGO</span></footer>
+</div></main></div><div id="toast" class="toast" role="status"></div><script type="module" src="assets/js/app.js"></script></body></html>
