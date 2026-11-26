@@ -46,7 +46,7 @@
 <div class="metric"><small>Promedio por registro</small><b id="metricAverage">0 h</b></div>
 <div class="metric"><small>Tiempo máximo</small><b id="metricMax">0 h</b></div>
 </div>
-<div class="panel table-wrap"><div class="section-heading"><div><h3>Registros incluidos</h3><p id="resultCount">0 registros</p></div><button class="btn danger" id="clearDataset" type="button">Eliminar registros</button></div><div id="resultsTable">Sin registros.</div></div>
+<section class="records-panel panel"><div class="records-heading"><div class="records-heading-copy"><span class="section-kicker">DETALLE DE DATOS</span><h3>Registros incluidos</h3><p id="resultCount">0 registros</p></div><div class="records-actions"><button class="btn records-toggle" id="toggleRecords" type="button" aria-expanded="false" aria-controls="resultsTable"><span id="recordsToggleIcon">＋</span> <span id="recordsToggleText">Mostrar registros</span></button><button class="btn danger" id="clearDataset" type="button">Eliminar registros</button></div></div><div id="resultsTable" class="records-content" hidden>Sin registros.</div></section>
 <div class="charts-section"><div class="charts-section-title"><div><label>VISUALIZACIÓN DINÁMICA</label><h2>Gráficas por filtro de análisis</h2><p>Cada columna seleccionada para filtros tendrá su propia gráfica.</p></div></div><div id="dynamicCharts" class="dynamic-charts"></div></div>
 </div>
 </section>
